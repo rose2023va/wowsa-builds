@@ -1,8 +1,8 @@
 # WOWSA Swimmable Distance Methodology
 
 Version: 1.0  
-Library: searoute-py (see pinned version in requirements.txt)  
-Units: kilometres (km), with miles provided as a secondary output  
+Library: searoute-py (check installed version: `pip3 show searoute`)  
+Units: kilometres (km) primary, miles secondary  
 Coordinate convention: inputs use lat,lon; internally GeoJSON order (lon,lat) is used throughout
 
 ---
@@ -21,89 +21,125 @@ This tool meets all three criteria.
 
 ---
 
-## Layer 1 — Calculation: searoute-py
+## Calculation layer: searoute-py
 
 searoute-py computes the shortest sea route between two coordinate pairs by routing
-through a maritime network that avoids land, rather than drawing a straight line.
-It returns a GeoJSON LineString tracing the path plus the total distance in km.
+through a maritime network that avoids land — not a straight line through it.
+It returns a GeoJSON LineString tracing the path plus the total distance.
 
-**Known limitation:** The underlying network was built for commercial shipping between
-ports, not for coastline-hugging swim routes. For point-to-point ocean crossings with
-open water between them, the result will closely match the real swimmable path. For
-routes that follow a coastline tightly, the network may be too coarse. Always compare
-the output against the swimmer's own route before treating it as the official figure.
-
----
-
-## Layer 2 — Visualization: Google Maps
-
-Google Maps is used only for display. It has no maritime routing mode and cannot
-compute a swimmable distance on its own. The coordinate list returned by searoute-py
-is passed to the Google Static Maps API as an encoded polyline, producing an
-embeddable satellite image of the computed route. The image is derived from
-searoute-py's output — Google does not influence the distance figure in any way.
+**Known limitation:** The network was built for commercial shipping between ports,
+not for coastline-hugging swim routes. For point-to-point open water crossings the
+result closely matches the real swimmable path. For tight coastline routes, verify
+the output against the swimmer's actual route before treating it as the official figure.
 
 ---
 
-## Point-to-Point Swims
+## Visualization layer: Google Maps
 
-Run `calculate.py` with `--origin` and `--destination` (or `--gpx`).
+Google Maps is used only for display. The coordinate list from searoute-py is passed
+to the Google Maps JavaScript API and drawn as a polyline on a satellite view.
+Google does not influence the distance figure in any way.
+
+Pass `--maps-key YOUR_KEY` to any script to open the result as an interactive map
+in your browser automatically.
+
+---
+
+## Point-to-point swims
 
 ```
-python calculate.py --origin 35.6762,139.6503 --destination 51.5074,-0.1278
+python3 calculate.py --origin LAT,LON --destination LAT,LON
+python3 calculate.py --origin LAT,LON --destination LAT,LON --maps-key YOUR_KEY
+python3 calculate.py --gpx swimmer-file.gpx --maps-key YOUR_KEY
+python3 calculate.py --origin LAT,LON --destination LAT,LON --output record.json
 ```
 
-The tool returns the distance in km and miles, the full GeoJSON route, and optionally
-a Google Static Maps URL if a `--maps-key` is provided.
+The terminal prints a timestamped ratification record. With `--maps-key` the route
+opens in the browser on a satellite map with a green start marker and red finish marker.
 
 ---
 
-## Circumnavigation Swims
+## Circumnavigation swims
 
-`circumnavigation.py` handles routes that close back on themselves (e.g., swimming
-around an island). It accepts a locked waypoint list, calls searoute-py on each
-consecutive pair, and sums the legs.
+For swims that close back on themselves (swimming around an island or peninsula),
+use this three-step workflow:
 
-### Waypoint process (required)
+### Step 1 — AI proposes candidate waypoints
 
-1. A human or AI proposes candidate waypoints placed in water around the landmass.
-2. A human manually confirms each waypoint sits in water and traces the coastline sensibly.
-3. The confirmed list is saved as a JSON file of `[lon, lat]` pairs.
-4. That file is treated as fixed reference data for this route — the same status as
-   the published start and finish coordinates. It must not be regenerated or modified
-   between runs.
+Ask Claude (or another AI):
 
-This process is required because AI cannot decide waypoints at calculation time.
-A different prompt or a different run could place them differently, breaking reproducibility.
+> "Propose waypoints placed in open water around [island/landmass name] for a
+> circumnavigation swim, going [clockwise/counterclockwise]. Return as a JSON array
+> of [longitude, latitude] pairs only — no explanation."
 
-### Waypoint file format
+Save the AI's output to a file named `candidate-[landmass].json`.
 
+Example output format:
 ```json
 [
   [-74.0060, 40.7128],
-  [-73.9857, 40.7484],
-  [-73.9442, 40.7831]
+  [-73.9442, 40.7831],
+  [-74.0200, 40.6892]
 ]
 ```
 
-Coordinates are `[longitude, latitude]` (GeoJSON order). The loop closes automatically
-from the last waypoint back to the first — do not repeat the starting point.
+**Important:** AI is used only to propose a starting list. It cannot decide the
+final waypoints — a different prompt or run could place them differently, which
+breaks reproducibility.
+
+### Step 2 — Human verifies each waypoint on Google Maps
 
 ```
-python circumnavigation.py --waypoints my_island_waypoints.json
+python3 propose-waypoints.py \
+  --waypoints candidate-[landmass].json \
+  --name "[Landmass Name]" \
+  --maps-key YOUR_KEY
 ```
+
+This opens a satellite map in your browser with each candidate waypoint shown as a
+numbered marker. Click each one to confirm:
+
+- The point sits in open water (not on land, not in a harbour that would be avoided)
+- The sequence traces the coastline sensibly in the intended direction
+- No obvious gaps or waypoints that would route through land
+
+Make any corrections to the JSON file manually — move, add, or remove points until
+the sequence is correct. When satisfied, rename the file:
+
+```
+mv candidate-[landmass].json locked-[landmass]-waypoints.json
+```
+
+The `locked-` prefix is required by `circumnavigation.py` as a signal that human
+verification has been completed.
+
+### Step 3 — Run the circumnavigation calculator
+
+```
+python3 circumnavigation.py \
+  --waypoints locked-[landmass]-waypoints.json \
+  --maps-key YOUR_KEY \
+  --output [landmass]-ratification-record.json
+```
+
+The terminal prints a ratification record with total distance and per-leg breakdown.
+With `--maps-key` the full route opens in the browser with numbered waypoint markers
+and the stitched route drawn in blue.
 
 ---
 
 ## Locked reference data
 
-Any route that has been officially measured using this tool should record:
+Once a circumnavigation has been officially measured, the following must be archived:
 
-- searoute-py version used (check: `pip show searoute`)
-- Origin and destination coordinates (or waypoint file for circumnavigations)
+- The locked waypoints JSON file (exact file used, not regenerated)
+- searoute-py version (`pip3 show searoute`)
 - Date of measurement
-- Distance in km and miles
-- GeoJSON output file
+- Total distance in km and miles
+- Per-leg breakdown
+- The JSON output record
 
-This allows any swimmer, organizer, or ratification body to rerun the calculation
-and reproduce the same result independently.
+This allows any swimmer, organizer, or ratification body to rerun the exact
+calculation and reproduce the same result independently. The locked waypoints file
+has the same standing as the swim's published start and finish coordinates —
+it must not be modified after ratification.

@@ -142,7 +142,7 @@ def main():
     parser.add_argument('--destination', metavar='LAT,LON',
                         help='Destination coordinate (required with --origin)')
     parser.add_argument('--maps-key', metavar='KEY',
-                        help='Google Maps Static API key (optional — generates a map image URL)')
+                        help='Google Maps JavaScript API key (optional — opens interactive map in browser)')
     parser.add_argument('--output', metavar='FILE',
                         help='Save full results to a JSON file')
 
@@ -157,7 +157,7 @@ def main():
         origin = parse_coord(args.origin)
         destination = parse_coord(args.destination)
 
-    result = calculate(origin, destination, maps_key=args.maps_key)
+    result = calculate(origin, destination)
 
     from datetime import datetime, timezone
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -173,8 +173,9 @@ def main():
     print(f"  DISTANCE:  {result['distance_km']} km  /  {result['distance_miles']} miles")
     print(f"{'=' * 50}\n")
 
-    if 'maps_url' in result:
-        print(f"Map URL:\n  {result['maps_url']}\n")
+    if args.maps_key:
+        from map_output import route_html
+        route_html(result, args.maps_key)
 
     if args.output:
         out_path = Path(args.output)
@@ -187,8 +188,6 @@ def main():
             "distance_miles": result["distance_miles"],
             "geojson": result["geojson"],
         }
-        if "maps_url" in result:
-            record["maps_url"] = result["maps_url"]
         with open(out_path, 'w') as f:
             json.dump(record, f, indent=2)
         print(f"Record saved to: {out_path}")
