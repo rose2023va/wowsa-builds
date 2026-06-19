@@ -159,24 +159,39 @@ def main():
 
     result = calculate(origin, destination, maps_key=args.maps_key)
 
-    print(f"\nSwimmable Distance")
-    print(f"==================")
-    print(f"  {result['distance_km']} km  /  {result['distance_miles']} miles")
-    print(f"  Origin:      {result['origin']['lat']}, {result['origin']['lon']}")
-    print(f"  Destination: {result['destination']['lat']}, {result['destination']['lon']}")
+    from datetime import datetime, timezone
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    print(f"\n{'=' * 50}")
+    print(f"  WOWSA SWIMMABLE DISTANCE — RATIFICATION RECORD")
+    print(f"{'=' * 50}")
+    print(f"  Date computed:  {timestamp}")
+    print(f"  Origin:         {result['origin']['lat']}, {result['origin']['lon']}")
+    print(f"  Destination:    {result['destination']['lat']}, {result['destination']['lon']}")
+    print(f"  Method:         searoute-py (maritime routing, avoids land)")
+    print(f"{'=' * 50}")
+    print(f"  DISTANCE:  {result['distance_km']} km  /  {result['distance_miles']} miles")
+    print(f"{'=' * 50}\n")
 
     if 'maps_url' in result:
-        print(f"\nMap URL:")
-        print(f"  {result['maps_url']}")
+        print(f"Map URL:\n  {result['maps_url']}\n")
 
     if args.output:
         out_path = Path(args.output)
+        record = {
+            "computed_at": timestamp,
+            "method": "searoute-py",
+            "origin": result["origin"],
+            "destination": result["destination"],
+            "distance_km": result["distance_km"],
+            "distance_miles": result["distance_miles"],
+            "geojson": result["geojson"],
+        }
+        if "maps_url" in result:
+            record["maps_url"] = result["maps_url"]
         with open(out_path, 'w') as f:
-            json.dump(result, f, indent=2)
-        print(f"\nResults saved to: {out_path}")
-    else:
-        print(f"\nGeoJSON route:")
-        print(json.dumps(result['geojson'], indent=2))
+            json.dump(record, f, indent=2)
+        print(f"Record saved to: {out_path}")
 
 
 if __name__ == '__main__':
