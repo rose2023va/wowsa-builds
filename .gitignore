@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.env
+swimmable-distance/config.py
+*.html.bak

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OWS Directory — Full Workflow</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 32px 24px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-bottom: 6px;
+    }
+    .sub {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 28px;
+    }
+    .diagram-wrap {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 32px;
+      overflow-x: auto;
+    }
+    .legend {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .legend span { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  </style>
+</head>
+<body>
+
+<h1>OWS Directory — Full Workflow</h1>
+<p class="sub">Clickable boxes open the linked page. Dashed arrow = pending build.</p>
+
+<div class="diagram-wrap">
+  <div id="diagram"></div>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:#3b82f6"></span> Entry points</span>
+  <span><span class="dot" style="background:#10b981"></span> Shared conversion flow</span>
+  <span><span class="dot" style="background:#f59e0b"></span> Admin manual steps</span>
+  <span><span class="dot" style="background:#6366f1"></span> Background automation</span>
+  <span>⚠️ Dashed = pending build &nbsp;|&nbsp; 🔗 Boxes with links are clickable</span>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'loose',
+    theme: 'dark',
+    themeVariables: {
+      fontSize: '13px',
+      primaryColor: '#1e3a5f',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#3b82f6',
+      lineColor: '#475569',
+      secondaryColor: '#1e293b',
+      tertiaryColor: '#0f172a',
+      clusterBkg: '#1e293b',
+      clusterBorder: '#334155',
+    },
+    flowchart: { curve: 'basis', padding: 20, useMaxWidth: false }
+  });
+
+  const chart = `flowchart TD
+
+  subgraph E1["① AI Scraper Pipeline"]
+    direction TB
+    a1["🤖 BrowseAI Scraper"]
+    a2["Airtable\\nDirectory Pipeline — Main"]
+    a3["Brilliant Directories\\nManage Posts\\nbatch import"]
+    a4["Airtable\\nBD for Sync"]
+    a5["Brevo List 200\\nBD Directory List Import"]
+    a6["Brevo Automation\\nBD Email Outreach\\n4 emails · Claim link"]
+    a1 --> a2
+    a2 --> a3
+    a3 --> a4
+    a4 -->|manual| a5
+    a5 --> a6
+  end
+
+  subgraph E2["② Existing Listings Migration"]
+    direction TB
+    b1["Airtable\\nWOWSA Existing Listings"]
+    b2["Brevo List 202\\nBD Directory Existing Contacts"]
+    b3["Brevo Automation\\nExisting Directory Outreach\\n4 emails · Claim link"]
+    b1 -->|manual batch| b2
+    b2 --> b3
+  end
+
+  subgraph E3["③ Landing Page"]
+    direction TB
+    c1["Landing Page\\nopenwaterswimming.com/wowsa-event-partner"]
+    c2["Claim Your Listing"]
+    c3["Add New Listing"]
+    c4["Choose Plan Directly"]
+    c5["OWS Directory\\nFind Swims — search and claim"]
+    c1 --> c2
+    c1 --> c3
+    c1 --> c4
+    c2 --> c5
+  end
+
+  subgraph E4["④ Directory Site"]
+    direction TB
+    d1["directory.openwaterswimming.com"]
+    d2["Claim Listing"]
+    d3["Add New Listing or Choose Plan"]
+    d1 --> d2
+    d1 --> d3
+  end
+
+  a6 --> CLAIM
+  b3 --> CLAIM
+  c5 --> CLAIM
+  d2 --> CLAIM
+
+  CLAIM["🔗 User Clicks Claim"]
+  CLAIM --> JOIN
+
+  c3 --> JOIN
+  d3 --> JOIN
+  c4 --> PAY
+
+  JOIN["Membership Page\\ndirectory.openwaterswimming.com/join\\nSelect a Plan"]
+  JOIN --> PAY
+
+  PAY["Payment Page\\ndirectory.openwaterswimming.com/checkout/featured\\nEnter email · password · payment"]
+  PAY --> OK
+
+  OK(["✅ Payment Successful"])
+
+  OK --> ADMIN
+  ADMIN["📧 Admin Notification\\ncontact@openwaterswimming.com"]
+  ADMIN --> BDRE
+  BDRE["Brilliant Directories Admin\\nManage Posts\\nReassign Post to new author"]
+
+  OK --> UDASH
+  UDASH["User Dashboard\\ndirectory.openwaterswimming.com/account/home"]
+  UDASH -.->|pending build| PROFILE
+  PROFILE["⚠️ Complete Member Profile\\nindividual or organization"]
+
+  UDASH --> RENEW
+  RENEW["🔄 Renewal\\nBD handles reminder and payment\\nPer membership · not per listing"]
+
+  subgraph BG1["Background — New Listings Path"]
+    direction TB
+    bg1a["Removed from List 200\\nBD Directory List Import"]
+    bg1b["Added to List 201\\nBD Directory Subscribed"]
+    bg1a --> bg1b
+  end
+
+  subgraph BG2["Background — Existing Listings Path"]
+    direction TB
+    bg2a["Removed from List 202\\nBD Directory Existing Contacts"]
+    bg2b["Added to List 203\\nBD Directory Existing Contacts — Subscribed"]
+    bg2a --> bg2b
+  end
+
+  subgraph BG3["Background — Both Paths"]
+    direction TB
+    bg3a["Airtable BD for Sync\\nStatus → Subscribed"]
+    bg3b["Airtable Subscriptions\\ntable updated"]
+  end
+
+  OK --> BG1
+  OK --> BG2
+  OK --> BG3
+
+  click a2 "https://airtable.com/appgCfXVeizy2WJrp/tblTKktDYyFZAuxN8/viw8VyqSvMi0AcBKU?blocks=hide" _blank
+  click a3 "https://ww2.managemydirectory.com/admin/viewPosts.php" _blank
+  click a4 "https://airtable.com/appgCfXVeizy2WJrp/tbl4xT2GZ7WA97sVv/viw3B7fduGBqkOGI4?blocks=hide" _blank
+  click a5 "https://app.brevo.com/contact/list-listing/id/200" _blank
+  click a6 "https://app.brevo.com/automation/edit/23" _blank
+  click b1 "https://airtable.com/appgCfXVeizy2WJrp/tbl2vjoXtTp2Vzw5p/viw1zxBuYs4S6gKSY?blocks=hide" _blank
+  click b2 "https://app.brevo.com/contact/list-listing/id/202" _blank
+  click b3 "https://app.brevo.com/automation/edit/24" _blank
+  click c1 "https://www.openwaterswimming.com/wowsa-event-partner/" _blank
+  click c5 "https://directory.openwaterswimming.com/find-swims" _blank
+  click d1 "https://directory.openwaterswimming.com/" _blank
+  click JOIN "https://directory.openwaterswimming.com/join" _blank
+  click PAY "https://directory.openwaterswimming.com/checkout/featured" _blank
+  click UDASH "https://directory.openwaterswimming.com/account/home" _blank
+  click BDRE "https://ww2.managemydirectory.com/admin/viewPosts.php" _blank
+  click bg1b "https://app.brevo.com/contact/list-listing/id/201" _blank
+  click bg2b "https://app.brevo.com/contact/list-listing/id/203" _blank
+  click bg3a "https://airtable.com/appgCfXVeizy2WJrp/tbl2vjoXtTp2Vzw5p/viw1zxBuYs4S6gKSY?blocks=hide" _blank
+  click bg3b "https://airtable.com/appgCfXVeizy2WJrp/tblWnzT73LQs3EWpK/viwltp3rTKigCdLw0?blocks=hide" _blank`;
+
+  mermaid.render('diagram-svg', chart).then(({ svg }) => {
+    document.getElementById('diagram').innerHTML = svg;
+  }).catch(err => {
+    document.getElementById('diagram').innerHTML =
+      '<pre style="color:#f87171;font-size:12px;white-space:pre-wrap">' + err.message + '</pre>';
+  });
+</script>
+</body>
+</html>
